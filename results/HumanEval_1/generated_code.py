@@ -12,20 +12,22 @@ def separate_paren_groups(paren_string: str) -> List[str]:
 
 from typing import List
 
+
 def separate_paren_groups(paren_string: str) -> List[str]:
-    stack = []
     result = []
-    temp_group = []
+    stack = []
+    current_group = []
 
     for char in paren_string.replace(" ", ""):
         if char == '(':
             stack.append(char)
-            temp_group.append(char)
+            current_group.append(char)
         elif char == ')':
-            stack.pop()
-            temp_group.append(char)
-            if not stack:
-                result.append(''.join(temp_group))
-                temp_group = []
+            if stack:
+                stack.pop()
+                current_group.append(char)
+                if not stack:
+                    result.append(''.join(current_group))
+                    current_group = []
 
     return result
