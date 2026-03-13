@@ -14,20 +14,19 @@ from typing import List
 
 
 def separate_paren_groups(paren_string: str) -> List[str]:
-    groups = []
-    current_group = ''
-    depth = 0
+    result = []
+    temp_group = []
+    paren_stack = []
 
-    for char in paren_string.replace(' ', ''):
+    for char in paren_string.replace(" ", ""):
         if char == '(':
-            depth += 1
-        elif char == ')':
-            depth -= 1
-        
-        current_group += char
+            paren_stack.append(char)
+            temp_group.append(char)
+        elif char == ')' and paren_stack:
+            temp_group.append(char)
+            paren_stack.pop()
+            if not paren_stack:
+                result.append(''.join(temp_group))
+                temp_group = []
 
-        if depth == 0 and current_group:  # When we finish a group
-            groups.append(current_group)
-            current_group = ''
-
-    return groups
+    return result

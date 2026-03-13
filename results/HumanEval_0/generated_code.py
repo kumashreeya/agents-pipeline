@@ -10,8 +10,8 @@ def has_close_elements(numbers: List[float], threshold: float) -> bool:
     True
     """
 
-from typing import *
-from collections import *
+from typing import List
+
 
 def has_close_elements(numbers: List[float], threshold: float) -> bool:
     numbers.sort()
@@ -19,4 +19,3 @@ def has_close_elements(numbers: List[float], threshold: float) -> bool:
         if numbers[i + 1] - numbers[i] < threshold:
             return True
     return False
-
