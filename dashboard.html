@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thesis Evaluation Pipeline — Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1f2e; background: #f5f7fa; min-height: 100vh; }
+  .topbar { background: #003057; color: #fff; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar h1 { font-size: 16px; font-weight: 600; }
+  .topbar .subtitle { font-size: 11px; opacity: 0.7; margin-top: 2px; }
+  .topbar .brand { display: flex; align-items: center; gap: 10px; }
+  .topbar .rise-badge { background: #0066B3; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: 1px; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 20px 24px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 20px; background: #fff; border-radius: 10px; border: 1px solid #e2e5ea; margin-bottom: 20px; }
+  .control-group { display: flex; flex-direction: column; gap: 4px; }
+  .control-group label { font-size: 11px; color: #6b7280; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+  .control-group select, .control-group input[type="number"] { font-size: 13px; padding: 7px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; color: #1a1f2e; }
+  .custom-range { display: none; }
+  .run-btn { padding: 8px 24px; background: #003057; color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .run-btn:hover { background: #0066B3; }
+  .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .load-btn { padding: 8px 16px; background: #fff; color: #003057; border: 1px solid #003057; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .load-btn:hover { background: #f0f4f8; }
+  .status-msg { font-size: 12px; color: #6b7280; align-self: center; margin-left: auto; }
+  .status-msg.running { color: #0066B3; font-weight: 500; }
+  .status-msg.done { color: #50B86C; font-weight: 500; }
+  .status-msg.error { color: #DC2626; font-weight: 500; }
+  .progress-bar { height: 3px; background: #e2e5ea; border-radius: 2px; margin-bottom: 20px; overflow: hidden; display: none; }
+  .progress-bar.active { display: block; }
+  .progress-bar .fill { height: 100%; background: #0066B3; border-radius: 2px; transition: width 0.3s; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+  .legend-bar { display: flex; gap: 20px; margin-bottom: 16px; font-size: 12px; color: #6b7280; }
+  .legend-bar span { display: flex; align-items: center; gap: 5px; }
+  .legend-bar .dot { width: 12px; height: 12px; border-radius: 3px; }
+  .metrics-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+  .metric-card { background: #fff; border-radius: 10px; padding: 14px 16px; border: 1px solid #e2e5ea; }
+  .metric-card .label { font-size: 11px; color: #6b7280; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+  .metric-card .value { font-size: 26px; font-weight: 700; color: #003057; margin-top: 4px; }
+  .tabs { display: flex; gap: 0; background: #fff; border-radius: 10px 10px 0 0; border: 1px solid #e2e5ea; border-bottom: none; overflow: hidden; }
+  .tab { padding: 12px 20px; font-size: 13px; color: #6b7280; cursor: pointer; border: none; background: none; font-weight: 500; border-bottom: 2px solid transparent; }
+  .tab:hover { color: #003057; background: #f9fafb; }
+  .tab.active { color: #003057; border-bottom-color: #003057; }
+  .tab-content { background: #fff; border: 1px solid #e2e5ea; border-top: none; border-radius: 0 0 10px 10px; padding: 20px; margin-bottom: 20px; }
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .chart-box { border: 1px solid #e2e5ea; border-radius: 8px; padding: 16px; }
+  .chart-box h3 { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 12px; }
+  .chart-box.full { grid-column: 1 / -1; }
+  .problem-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .pill { padding: 6px 14px; font-size: 12px; border-radius: 20px; border: 1px solid #d1d5db; cursor: pointer; background: #fff; color: #6b7280; font-weight: 500; }
+  .pill:hover { border-color: #003057; color: #003057; }
+  .pill.active { background: #003057; color: #fff; border-color: #003057; }
+  .problem-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .problem-card { border: 1px solid #e2e5ea; border-radius: 8px; padding: 14px; border-top: 3px solid #ccc; }
+  .problem-card h4 { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+  .problem-card .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .problem-card .stat-label { font-size: 10px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; }
+  .problem-card .stat-value { font-size: 16px; font-weight: 600; margin-top: 1px; }
+  .pass { color: #059669; }
+  .fail { color: #DC2626; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th { text-align: left; padding: 10px 12px; font-weight: 600; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e2e5ea; background: #f9fafb; }
+  tbody td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; }
+  tbody tr:hover { background: #f9fafb; }
+  .wf-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .saved-files { margin-top: 12px; }
+  .saved-files a { display: inline-block; padding: 4px 12px; margin: 3px; font-size: 12px; color: #003057; border: 1px solid #d1d5db; border-radius: 4px; text-decoration: none; cursor: pointer; }
+  .saved-files a:hover { background: #f0f4f8; }
+  @media (max-width: 768px) { .metrics-row { grid-template-columns: repeat(2, 1fr); } .chart-grid { grid-template-columns: 1fr; } .problem-cards { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>Thesis evaluation pipeline</h1>
+    <div class="subtitle">On the evaluation of AI-driven code and test generation agents</div>
+  </div>
+  <div class="brand">
+    <span class="rise-badge">RISE</span>
+    <span style="font-size:12px;opacity:0.7;">BTH</span>
+  </div>
+</div>
+
+<div class="container">
+  <div class="controls">
+    <div class="control-group">
+      <label>Problems</label>
+      <select id="probSelect" onchange="toggleCustom()">
+        <option value="5">First 5 (HE/0-4)</option>
+        <option value="10">First 10 (HE/0-9)</option>
+        <option value="20">First 20 (HE/0-19)</option>
+        <option value="custom">Custom range</option>
+      </select>
+    </div>
+    <div class="control-group custom-range" id="customRange">
+      <label>From - To</label>
+      <div style="display:flex;gap:6px;">
+        <input type="number" id="fromP" value="0" min="0" max="163" style="width:65px;">
+        <input type="number" id="toP" value="4" min="0" max="163" style="width:65px;">
+      </div>
+    </div>
+    <div class="control-group">
+      <label>Max iterations</label>
+      <select id="iterSelect">
+        <option value="3" selected>3</option>
+        <option value="5">5</option>
+        <option value="10">10</option>
+      </select>
+    </div>
+    <button class="run-btn" id="runBtn" onclick="handleRun()">Run experiment</button>
+    <button class="load-btn" onclick="loadLatest()">Load latest results</button>
+    <span class="status-msg" id="statusMsg">Ready</span>
+  </div>
+
+  <div class="progress-bar" id="progressBar"><div class="fill" id="progressFill" style="width:0%"></div></div>
+
+  <div class="legend-bar">
+    <span><span class="dot" style="background:#3266ad;"></span>A - Sequential</span>
+    <span><span class="dot" style="background:#d48a2e;"></span>B - Iterative</span>
+    <span><span class="dot" style="background:#3a9956;"></span>C - Quality-gated</span>
+  </div>
+
+  <div class="metrics-row">
+    <div class="metric-card"><div class="label">Total runs</div><div class="value" id="mTotal">-</div></div>
+    <div class="metric-card"><div class="label">Avg correctness</div><div class="value" id="mCorr">-</div></div>
+    <div class="metric-card"><div class="label">Avg quality</div><div class="value" id="mQual">-</div></div>
+    <div class="metric-card"><div class="label">Avg test rate</div><div class="value" id="mTest">-</div></div>
+    <div class="metric-card"><div class="label">Avg time</div><div class="value" id="mTime">-</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('overview',this)">Overview</button>
+    <button class="tab" onclick="switchTab('perproblem',this)">Per problem</button>
+    <button class="tab" onclick="switchTab('datatable',this)">Data table</button>
+  </div>
+
+  <div class="tab-content" id="tab-overview">
+    <div class="chart-grid">
+      <div class="chart-box"><h3>Correctness by workflow</h3><div style="position:relative;height:220px;"><canvas id="chartCorr"></canvas></div></div>
+      <div class="chart-box"><h3>Quality score by workflow</h3><div style="position:relative;height:220px;"><canvas id="chartQual"></canvas></div></div>
+      <div class="chart-box"><h3>Test pass rate by workflow</h3><div style="position:relative;height:220px;"><canvas id="chartTest"></canvas></div></div>
+      <div class="chart-box"><h3>Iterations used by workflow</h3><div style="position:relative;height:220px;"><canvas id="chartIter"></canvas></div></div>
+      <div class="chart-box full"><h3>Cost-quality tradeoff</h3><div style="position:relative;height:280px;"><canvas id="chartScatter"></canvas></div></div>
+      <div class="chart-box full"><h3>Multi-dimensional radar comparison</h3><div style="position:relative;height:340px;"><canvas id="chartRadar"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-perproblem" style="display:none;">
+    <div class="problem-pills" id="problemPills"></div>
+    <div id="problemDetail"></div>
+  </div>
+
+  <div class="tab-content" id="tab-datatable" style="display:none;">
+    <div style="overflow-x:auto;"><table id="dataTable"></table></div>
+    <div class="saved-files" id="savedFiles"></div>
+  </div>
+</div>
+
+<script>
+const WF=["A_sequential","B_iterative","C_gated"];
+const WF_LABELS=["A - Sequential","B - Iterative","C - Quality-gated"];
+const WF_SHORT=["A","B","C"];
+const WF_COLORS=["#3266ad","#d48a2e","#3a9956"];
+const WF_BG=["rgba(50,102,173,0.12)","rgba(212,138,46,0.12)","rgba(58,153,86,0.12)"];
+let charts={};
+let currentData=[];
+let pollTimer=null;
+
+function avg(a,k){if(!a.length)return 0;return a.reduce((s,r)=>s+(typeof k==='function'?k(r):r[k]),0)/a.length;}
+function wfD(d,w){return d.filter(r=>r.w===w);}
+
+function convertData(raw){
+  return raw.map(r=>({
+    w:r.workflow,t:r.task_id,i:r.iterations,c:r.correct,
+    qv:r.quality_verdict,qs:r.quality_score||0,
+    tr:r.test_pass_rate||0,tp:r.test_passed||0,tt:r.test_total||0,
+    tc:r.test_coverage||0,sm:r.test_smells||0,
+    dc:r.ai_dead_code||0,hi:r.ai_hallucinated_imports||0,dp:r.ai_duplicates||0,
+    ts:r.time_seconds||0
+  }));
+}
+
+function toggleCustom(){
+  document.getElementById('customRange').style.display=document.getElementById('probSelect').value==='custom'?'flex':'none';
+}
+
+async function handleRun(){
+  const sel=document.getElementById('probSelect').value;
+  const iters=parseInt(document.getElementById('iterSelect').value);
+  let from=0,to=4;
+  if(sel==='custom'){from=parseInt(document.getElementById('fromP').value);to=parseInt(document.getElementById('toP').value);}
+  else{to=parseInt(sel)-1;}
+
+  document.getElementById('runBtn').disabled=true;
+  setStatus('Starting experiment...','running');
+  showProgress(true);
+
+  try{
+    const resp=await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:from,to:to,max_iterations:iters})});
+    const data=await resp.json();
+    if(data.error){setStatus('Error: '+data.error,'error');document.getElementById('runBtn').disabled=false;showProgress(false);return;}
+    setStatus(data.message,'running');
+    startPolling();
+  }catch(e){
+    setStatus('Cannot connect to server. Run: python server.py','error');
+    document.getElementById('runBtn').disabled=false;
+    showProgress(false);
+  }
+}
+
+function startPolling(){
+  if(pollTimer)clearInterval(pollTimer);
+  pollTimer=setInterval(async()=>{
+    try{
+      const resp=await fetch('/api/status');
+      const state=await resp.json();
+      setStatus(state.progress,state.status==='running'?'running':state.status==='done'?'done':'error');
+
+      if(state.results&&state.results.length>0){
+        currentData=convertData(state.results);
+        render(currentData);
+      }
+
+      if(state.status==='done'||state.status==='error'){
+        clearInterval(pollTimer);
+        pollTimer=null;
+        document.getElementById('runBtn').disabled=false;
+        showProgress(false);
+        if(state.status==='done')loadSavedFiles();
+      }
+    }catch(e){}
+  },3000);
+}
+
+async function loadLatest(){
+  try{
+    setStatus('Loading latest results...','running');
+    const resp=await fetch('/api/results');
+    const raw=await resp.json();
+    if(Array.isArray(raw)&&raw.length>0){
+      currentData=convertData(raw);
+      render(currentData);
+      setStatus('Loaded '+currentData.length+' results','done');
+    }else{
+      setStatus('No results found','error');
+    }
+  }catch(e){
+    setStatus('Cannot connect to server. Run: python server.py','error');
+  }
+}
+
+async function loadFile(filename){
+  try{
+    const resp=await fetch('/api/results/'+filename);
+    const raw=await resp.json();
+    if(Array.isArray(raw)){
+      currentData=convertData(raw);
+      render(currentData);
+      setStatus('Loaded '+filename+' ('+currentData.length+' results)','done');
+    }
+  }catch(e){setStatus('Error loading file','error');}
+}
+
+async function loadSavedFiles(){
+  try{
+    const resp=await fetch('/api/results/list');
+    const files=await resp.json();
+    const container=document.getElementById('savedFiles');
+    if(files.length>0){
+      container.innerHTML='<p style="font-size:12px;color:#6b7280;margin-bottom:8px;">Saved experiments:</p>'+
+        files.map(f=>'<a onclick="loadFile(\''+f+'\')">'+f+'</a>').join('');
+    }
+  }catch(e){}
+}
+
+function setStatus(msg,type){
+  const el=document.getElementById('statusMsg');
+  el.textContent=msg;
+  el.className='status-msg'+(type?' '+type:'');
+}
+
+function showProgress(show){
+  const bar=document.getElementById('progressBar');
+  bar.className='progress-bar'+(show?' active':'');
+  document.getElementById('progressFill').style.width=show?'60%':'0%';
+}
+
+function switchTab(name,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  ['overview','perproblem','datatable'].forEach(n=>{
+    const t=document.getElementById('tab-'+n);if(t)t.style.display=n===name?'block':'none';
+  });
+}
+
+function updateMetrics(d){
+  if(!d.length){document.querySelectorAll('.metric-card .value').forEach(e=>e.textContent='-');return;}
+  document.getElementById('mTotal').textContent=d.length;
+  document.getElementById('mCorr').textContent=Math.round(d.filter(r=>r.c).length/d.length*100)+'%';
+  document.getElementById('mQual').textContent=Math.round(avg(d,'qs'));
+  document.getElementById('mTest').textContent=Math.round(avg(d,'tr')*100)+'%';
+  document.getElementById('mTime').textContent=Math.round(avg(d,'ts'))+'s';
+}
+
+function makeBar(id,dataFn,maxVal){
+  if(charts[id])charts[id].destroy();
+  charts[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels:WF_LABELS,datasets:[{data:WF.map(w=>Math.round(dataFn(w)*10)/10),backgroundColor:WF_COLORS,borderRadius:5,maxBarThickness:56}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:maxVal||undefined,grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{display:false}}}}});
+}
+
+function buildOverview(d){
+  if(!d.length)return;
+  makeBar('chartCorr',w=>{const x=wfD(d,w);return x.filter(r=>r.c).length/x.length*100;},105);
+  makeBar('chartQual',w=>avg(wfD(d,w),'qs'),105);
+  makeBar('chartTest',w=>avg(wfD(d,w),'tr')*100,105);
+  makeBar('chartIter',w=>avg(wfD(d,w),'i'));
+
+  if(charts.scatter)charts.scatter.destroy();
+  const sc=WF.map(w=>{const x=wfD(d,w);return{x:Math.round(avg(x,'ts')),y:Math.round(x.filter(r=>r.c).length/x.length*100)};});
+  charts.scatter=new Chart(document.getElementById('chartScatter'),{type:'scatter',data:{datasets:WF.map((w,i)=>({label:WF_LABELS[i],data:[sc[i]],backgroundColor:WF_COLORS[i],pointRadius:12,borderColor:WF_COLORS[i],borderWidth:2}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Average time (s)'},grid:{color:'rgba(0,0,0,0.05)'}},y:{title:{display:true,text:'Correctness %'},min:0,max:105,grid:{color:'rgba(0,0,0,0.05)'}}}}});
+
+  if(charts.radar)charts.radar.destroy();
+  const dims=['Correctness','Quality','Test rate','Coverage','Efficiency'];
+  charts.radar=new Chart(document.getElementById('chartRadar'),{type:'radar',data:{labels:dims,datasets:WF.map((w,i)=>{const x=wfD(d,w),n=x.length;return{label:WF_LABELS[i],data:[Math.round(x.filter(r=>r.c).length/n*100),Math.round(avg(x,'qs')),Math.round(avg(x,'tr')*100),Math.round(avg(x,'tc')),Math.round(Math.max(0,(1-(avg(x,'i')-1)/2)*100))],borderColor:WF_COLORS[i],backgroundColor:WF_BG[i],pointBackgroundColor:WF_COLORS[i],borderWidth:2};})},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{r:{beginAtZero:true,max:100,ticks:{stepSize:25,font:{size:10}}}}}});
+}
+
+function buildPills(d){
+  const tasks=[...new Set(d.map(r=>r.t))].sort((a,b)=>parseInt(a.split('/')[1])-parseInt(b.split('/')[1]));
+  const c=document.getElementById('problemPills');c.innerHTML='';
+  tasks.forEach((task,idx)=>{
+    const p=document.createElement('button');p.className='pill'+(idx===0?' active':'');
+    p.textContent=task.replace('HumanEval/','HE/');
+    p.onclick=()=>{c.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));p.classList.add('active');showProblem(d,task);};
+    c.appendChild(p);
+  });
+  const all=document.createElement('button');all.className='pill';all.textContent='All problems';all.style.fontWeight='600';
+  all.onclick=()=>{c.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));all.classList.add('active');showAll(d);};
+  c.appendChild(all);
+  if(tasks.length)showProblem(d,tasks[0]);
+}
+
+function showProblem(d,task){
+  const rows=d.filter(r=>r.t===task);const det=document.getElementById('problemDetail');
+  let h='<div class="problem-cards">';
+  rows.forEach((r,i)=>{const wi=WF.indexOf(r.w);
+    h+=`<div class="problem-card" style="border-top-color:${WF_COLORS[wi]}"><h4>${WF_LABELS[wi]}</h4><div class="stat-grid">
+      <div><div class="stat-label">Correct</div><div class="stat-value ${r.c?'pass':'fail'}">${r.c?'PASS':'FAIL'}</div></div>
+      <div><div class="stat-label">Quality</div><div class="stat-value">${r.qs}/100</div></div>
+      <div><div class="stat-label">Tests</div><div class="stat-value">${r.tp}/${r.tt}</div></div>
+      <div><div class="stat-label">Coverage</div><div class="stat-value">${r.tc}%</div></div>
+      <div><div class="stat-label">Iterations</div><div class="stat-value">${r.i}</div></div>
+      <div><div class="stat-label">Time</div><div class="stat-value">${Math.round(r.ts)}s</div></div>
+      <div><div class="stat-label">Dead code</div><div class="stat-value">${r.dc}</div></div>
+      <div><div class="stat-label">Duplicates</div><div class="stat-value">${r.dp}</div></div>
+      <div><div class="stat-label">Test smells</div><div class="stat-value">${r.sm}</div></div>
+      <div><div class="stat-label">Halluc imports</div><div class="stat-value">${r.hi}</div></div>
+    </div></div>`;
+  });
+  h+='</div>';det.innerHTML=h;
+}
+
+function showAll(d){
+  const tasks=[...new Set(d.map(r=>r.t))].sort((a,b)=>parseInt(a.split('/')[1])-parseInt(b.split('/')[1]));
+  const det=document.getElementById('problemDetail');
+  let h='<div style="overflow-x:auto;"><table><thead><tr><th>Problem</th>';
+  WF_LABELS.forEach(l=>{h+=`<th style="text-align:center">${l}</th>`;});
+  h+='<th style="text-align:center">Best</th></tr></thead><tbody>';
+  tasks.forEach(task=>{
+    h+=`<tr><td style="font-weight:600">${task.replace('HumanEval/','HE/')}</td>`;
+    let best=null,bs=-1;
+    WF.forEach((wf,i)=>{const r=d.find(x=>x.t===task&&x.w===wf);
+      if(r){const sc=(r.c?50:0)+r.qs*0.3+r.tr*20;if(sc>bs){bs=sc;best=WF_SHORT[i];}
+        h+=`<td style="text-align:center"><span class="${r.c?'pass':'fail'}" style="font-weight:600">${r.c?'PASS':'FAIL'}</span><span style="color:#9ca3af;font-size:11px"> (${r.qs})</span></td>`;
+      }else h+='<td style="text-align:center;color:#d1d5db">-</td>';
+    });
+    h+=`<td style="text-align:center;font-weight:600;color:#003057">${best||'-'}</td></tr>`;
+  });
+  h+='</tbody></table></div>';
+
+  h+='<div style="margin-top:20px" class="chart-grid">';
+  h+='<div class="chart-box"><h3>Correctness per problem</h3><div style="position:relative;height:250px"><canvas id="chartAllCorr"></canvas></div></div>';
+  h+='<div class="chart-box"><h3>Quality per problem</h3><div style="position:relative;height:250px"><canvas id="chartAllQual"></canvas></div></div></div>';
+  det.innerHTML=h;
+
+  const labels=tasks.map(t=>t.replace('HumanEval/','HE/'));
+  if(charts.allCorr)charts.allCorr.destroy();
+  charts.allCorr=new Chart(document.getElementById('chartAllCorr'),{type:'bar',data:{labels,datasets:WF.map((wf,i)=>({label:WF_LABELS[i],data:tasks.map(t=>{const r=d.find(x=>x.t===t&&x.w===wf);return r?(r.c?1:0):0;}),backgroundColor:WF_COLORS[i],borderRadius:3,maxBarThickness:18}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:1.2,ticks:{callback:v=>v===1?'Pass':v===0?'Fail':''}},x:{grid:{display:false}}}}});
+
+  if(charts.allQual)charts.allQual.destroy();
+  charts.allQual=new Chart(document.getElementById('chartAllQual'),{type:'bar',data:{labels,datasets:WF.map((wf,i)=>({label:WF_LABELS[i],data:tasks.map(t=>{const r=d.find(x=>x.t===t&&x.w===wf);return r?r.qs:0;}),backgroundColor:WF_COLORS[i],borderRadius:3,maxBarThickness:18}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:105},x:{grid:{display:false}}}}});
+}
+
+function buildTable(d){
+  const tasks=[...new Set(d.map(r=>r.t))].sort((a,b)=>parseInt(a.split('/')[1])-parseInt(b.split('/')[1]));
+  let h='<thead><tr><th>Problem</th><th>Workflow</th><th>Correct</th><th>Quality</th><th>Tests</th><th>Coverage</th><th>Iters</th><th>Smells</th><th>Dead</th><th>Dups</th><th>Time</th></tr></thead><tbody>';
+  tasks.forEach(task=>{d.filter(r=>r.t===task).forEach(r=>{const wi=WF.indexOf(r.w);
+    h+=`<tr><td style="font-weight:500">${r.t.replace('HumanEval/','HE/')}</td>
+    <td><span class="wf-dot" style="background:${WF_COLORS[wi]}"></span>${WF_SHORT[wi]}</td>
+    <td class="${r.c?'pass':'fail'}">${r.c?'Pass':'Fail'}</td>
+    <td>${r.qs}</td><td>${r.tp}/${r.tt}</td><td>${r.tc}%</td><td>${r.i}</td>
+    <td>${r.sm}</td><td>${r.dc}</td><td>${r.dp}</td><td>${Math.round(r.ts)}s</td></tr>`;
+  });});
+  h+='</tbody>';document.getElementById('dataTable').innerHTML=h;
+}
+
+function render(d){updateMetrics(d);buildOverview(d);buildPills(d);buildTable(d);}
+
+// On page load, try to connect to server
+window.addEventListener('load', async ()=>{
+  try{
+    const resp=await fetch('/api/results');
+    const raw=await resp.json();
+    if(Array.isArray(raw)&&raw.length>0){
+      currentData=convertData(raw);
+      render(currentData);
+      setStatus('Connected - loaded '+currentData.length+' results','done');
+      loadSavedFiles();
+    }else{setStatus('Connected - no results yet','');}
+  }catch(e){setStatus('Offline mode - run python server.py to connect','');}
+});
+</script>
+</body>
+</html>

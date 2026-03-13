@@ -1,0 +1,13 @@
+WORKFLOW COMPARISON SUMMARY
+================================================================================
+Metric                 A_sequential     B_iterative      C_gated         
+----------------------------------------------------------------------
+Correct %              80.0%            60.0%            80.0%           
+Avg Quality Score      76.0             66.0             65.0            
+Avg Test Pass Rate     80.0%            56.0%            68.0%           
+Avg Coverage           100.0%           100.0%           100.0%          
+Avg Iterations         1.0              2.2              1.8             
+Avg Time (s)           28.4             45.4             53.3            
+Avg Dead Code          0.0              0.0              0.0             
+Avg Duplicates         0.0              0.0              0.0             
+Avg Test Smells        0.2              0.4              0.2             

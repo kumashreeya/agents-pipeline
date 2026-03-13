@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-13T20:43:40.501645",
+  "timestamp": "2026-03-13T22:26:04.136954",
   "task_id": "HumanEval/4",
   "model": "qwen2.5-coder:3b",
   "code_file": "results/HumanEval_4/generated_code.py",
@@ -15,11 +15,11 @@
     },
     "pass_rate": {
       "metric": "test_pass_rate",
-      "passed": 5,
-      "failed": 0,
+      "passed": 4,
+      "failed": 1,
       "errors": 0,
       "total": 5,
-      "pass_rate": 1.0
+      "pass_rate": 0.8
     },
     "coverage": {
       "metric": "line_coverage",
@@ -33,9 +33,9 @@
     "flakiness": {
       "metric": "flakiness",
       "runs": [
-        5,
-        5,
-        5
+        4,
+        4,
+        4
       ],
       "is_flaky": false,
       "flakiness_rate": 0.0

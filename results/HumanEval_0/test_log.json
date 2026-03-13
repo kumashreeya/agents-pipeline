@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-13T20:35:03.851746",
+  "timestamp": "2026-03-13T22:14:58.429616",
   "task_id": "HumanEval/0",
   "model": "qwen2.5-coder:3b",
   "code_file": "results/HumanEval_0/generated_code.py",
@@ -9,21 +9,21 @@
     "validity": {
       "metric": "test_validity",
       "valid": true,
-      "test_function_count": 5,
-      "assert_count": 5,
-      "assertions_per_test": 1.0
+      "test_function_count": 0,
+      "assert_count": 0,
+      "assertions_per_test": 0
     },
     "pass_rate": {
       "metric": "test_pass_rate",
-      "passed": 4,
-      "failed": 1,
+      "passed": 0,
+      "failed": 0,
       "errors": 0,
-      "total": 5,
-      "pass_rate": 0.8
+      "total": 0,
+      "pass_rate": 0
     },
     "coverage": {
       "metric": "line_coverage",
-      "coverage_percent": 100.0
+      "coverage_percent": 28.57
     },
     "smells": {
       "metric": "test_smells",
@@ -33,12 +33,12 @@
     "flakiness": {
       "metric": "flakiness",
       "runs": [
-        4,
-        4,
-        4
+        0,
+        0,
+        0
       ],
       "is_flaky": false,
-      "flakiness_rate": 0.0
+      "flakiness_rate": 0
     }
   }
 }
