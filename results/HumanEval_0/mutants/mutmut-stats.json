@@ -1,0 +1,17 @@
+{
+    "tests_by_mangled_function_name": {
+        "generated_code_clean.x_has_close_elements": [
+            "test_for_mutmut.py::test_empty",
+            "test_for_mutmut.py::test_normal",
+            "test_for_mutmut.py::test_single",
+            "test_for_mutmut.py::test_close"
+        ]
+    },
+    "duration_by_test": {
+        "test_for_mutmut.py::test_normal": 0.00013937402400188148,
+        "test_for_mutmut.py::test_close": 0.00010399901657365263,
+        "test_for_mutmut.py::test_empty": 9.116702130995691e-05,
+        "test_for_mutmut.py::test_single": 9.137499728240073e-05
+    },
+    "stats_time": 0.103435
+}
