@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-13T15:39:07.033978",
+  "timestamp": "2026-03-13T16:07:32.804342",
   "task_id": "HumanEval/0",
   "model": "qwen2.5-coder:3b",
   "code_file": "results/HumanEval_0/generated_code.py",
@@ -20,7 +20,7 @@
       "errors": 0,
       "total": 5,
       "pass_rate": 0.8,
-      "output": "============================= test session starts ==============================\nplatform darwin -- Python 3.13.3, pytest-9.0.2, pluggy-1.6.0 -- /Users/shreeyakalidindi/thesis/quality-agent/venv/bin/python\ncachedir: .pytest_cache\nrootdir: /Users/shreeyakalidindi/thesis/quality-agent/results/HumanEval_0\nplugins: anyio-4.12.1, cov-7.0.0\ncollecting ... collected 5 items\n\ngenerated_tests.py::test_has_close_elements_normal PASSED                [ 20%]\ngenerated_tests.py::test_has_close_elements_edge_"
+      "output": "============================= test session starts ==============================\nplatform darwin -- Python 3.13.3, pytest-9.0.2, pluggy-1.6.0 -- /Users/shreeyakalidindi/thesis/quality-agent/venv/bin/python\ncachedir: .pytest_cache\nrootdir: /Users/shreeyakalidindi/thesis/quality-agent/results/HumanEval_0\nplugins: anyio-4.12.1, cov-7.0.0\ncollecting ... collected 5 items\n\ngenerated_tests.py::test_has_close_elements_empty_list PASSED            [ 20%]\ngenerated_tests.py::test_has_close_elements_singl"
     },
     "coverage": {
       "metric": "line_coverage",

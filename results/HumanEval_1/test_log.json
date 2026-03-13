@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-12T19:31:32.264437",
+  "timestamp": "2026-03-13T16:07:57.710498",
   "task_id": "HumanEval/1",
   "model": "qwen2.5-coder:3b",
   "code_file": "results/HumanEval_1/generated_code.py",
@@ -15,11 +15,11 @@
     },
     "pass_rate": {
       "metric": "test_pass_rate",
-      "passed": 4,
-      "failed": 1,
+      "passed": 5,
+      "failed": 0,
       "errors": 0,
       "total": 5,
-      "pass_rate": 0.8,
+      "pass_rate": 1.0,
       "output": "============================= test session starts ==============================\nplatform darwin -- Python 3.13.3, pytest-9.0.2, pluggy-1.6.0 -- /Users/shreeyakalidindi/thesis/quality-agent/venv/bin/python\ncachedir: .pytest_cache\nrootdir: /Users/shreeyakalidindi/thesis/quality-agent/results/HumanEval_1\nplugins: anyio-4.12.1, cov-7.0.0\ncollecting ... collected 5 items\n\ngenerated_tests.py::test_empty_input PASSED                              [ 20%]\ngenerated_tests.py::test_single_group PASSED     "
     },
     "coverage": {
@@ -34,9 +34,9 @@
     "flakiness": {
       "metric": "flakiness",
       "runs": [
-        4,
-        4,
-        4
+        5,
+        5,
+        5
       ],
       "is_flaky": false,
       "flakiness_rate": 0.0

@@ -9,16 +9,8 @@ def has_close_elements(numbers: List[float], threshold: float) -> bool:
     >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)
     True
     """
-
-
-
-from typing import List
-
-
-def has_close_elements(numbers: List[float], threshold: float) -> bool:
-    numbers.sort()
-    for i in range(len(numbers) - 1):
-        if abs(numbers[i] - numbers[i + 1]) < threshold:
+    sorted_numbers = sorted(numbers)
+    for i in range(len(sorted_numbers) - 1):
+        if sorted_numbers[i + 1] - sorted_numbers[i] < threshold:
             return True
     return False
-

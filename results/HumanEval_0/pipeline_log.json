@@ -1,16 +1,14 @@
 {
-  "timestamp": "2026-03-12T19:31:12.536117",
+  "timestamp": "2026-03-13T16:07:32.807915",
   "task_id": "HumanEval/0",
   "correctness": true,
   "syntax_valid": true,
   "quality": {
-    "verdict": "FAIL",
-    "score": 70,
+    "verdict": "UNKNOWN",
+    "score": "?",
     "metrics_checked": [
-      "lint_violations",
       "cyclomatic_complexity",
-      "maintainability_index",
-      "type_errors"
+      "maintainability_index"
     ]
   },
   "testing": {
