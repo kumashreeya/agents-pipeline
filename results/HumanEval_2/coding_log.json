@@ -1,10 +1,10 @@
 {
-  "timestamp": "2026-03-13T17:33:13.420616",
+  "timestamp": "2026-03-13T20:38:45.119705",
   "task_id": "HumanEval/2",
   "model": "qwen2.5-coder:3b",
-  "prompt": "\n\ndef truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n\n\n# FEEDBACK FROM PREVIOUS ATTEMPT:\n# Consider refactoring the function to reduce its complexity while maintaining its functionality.\n",
-  "generated_body": "```python\n\ndef truncate_number(number: float) -> float:\n    integer_part = int(number)\n    decimal_part = number - integer_part\n    return decimal_part\n\n```",
-  "full_code": "\n\ndef truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n\n\n# FEEDBACK FROM PREVIOUS ATTEMPT:\n# Consider refactoring the function to reduce its complexity while maintaining its functionality.\n    integer_part = int(number)\n    decimal_part = number - integer_part\n    return decimal_part\n",
+  "prompt": "\n\ndef truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n",
+  "generated_body": "```\ndef truncate_number(number: float) -> float:\n    return number - int(number)\n```",
+  "full_code": "\n\ndef truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n\n",
   "valid": true,
   "validation_issue": "ok"
 }

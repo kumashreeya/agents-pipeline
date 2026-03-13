@@ -10,9 +10,3 @@ def truncate_number(number: float) -> float:
     0.5
     """
 
-
-# FEEDBACK FROM PREVIOUS ATTEMPT:
-# Consider refactoring the function to reduce its complexity while maintaining its functionality.
-    integer_part = int(number)
-    decimal_part = number - integer_part
-    return decimal_part

@@ -10,14 +10,9 @@ def mean_absolute_deviation(numbers: List[float]) -> float:
     >>> mean_absolute_deviation([1.0, 2.0, 3.0, 4.0])
     1.0
     """
-
-
-# FEEDBACK FROM PREVIOUS ATTEMPT:
-# Consider reducing the cyclomatic complexity by simplifying the logic or breaking it down into smaller functions.
     if not numbers:
         return 0.0
 
-    mean = sum(numbers) / len(numbers)
-    absolute_deviations = [abs(x - mean) for x in numbers]
-    mad = sum(absolute_deviations) / len(absolute_deviations)
+    mean_value = sum(numbers) / len(numbers)
+    mad = sum(abs(x - mean_value) for x in numbers) / len(numbers)
     return mad

@@ -13,7 +13,7 @@ def below_zero(operations: List[int]) -> bool:
 
 
 # FEEDBACK FROM PREVIOUS ATTEMPT:
-# Refactor the function to reduce cyclomatic complexity. For example, you could use a while loop instead of a for loop.
+# Refactor the `below_zero` function to reduce its cyclomatic complexity. Consider using a loop instead of recursion or simplifying conditional logic.
     balance = 0
     for operation in operations:
         balance += operation
