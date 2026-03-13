@@ -10,13 +10,11 @@ def below_zero(operations: List[int]) -> bool:
     >>> below_zero([1, 2, -4, 5])
     True
     """
+    balance = 0  # Initialize the balance to zero outside the loop
 
-
-# FEEDBACK FROM PREVIOUS ATTEMPT:
-# Refactor the `below_zero` function to reduce its cyclomatic complexity. Consider using a loop instead of recursion or simplifying conditional logic.
-    balance = 0
     for operation in operations:
-        balance += operation
+        balance += operation  # Update the balance before checking if it's below zero
         if balance < 0:
             return True
+
     return False

@@ -1,6 +1,4 @@
-"""
-Workflow nodes with AI-specific metrics integrated.
-"""
+"""Workflow nodes with proper feedback loop."""
 import os
 from agents.coding_agent import CodingAgent
 from agents.quality_agent import QualityAgent
@@ -16,16 +14,22 @@ def coding_node(state):
     iteration = state.get("iteration", 0) + 1
     print(f"\n  [CODING] Iteration {iteration}")
 
-    prompt = state["prompt"]
     task_id = state["task_id"]
-
+    prompt = state["prompt"]
     feedback = state.get("quality_feedback", "") or ""
-    if feedback and iteration > 1:
-        enhanced_prompt = f"{prompt}\n\n# FEEDBACK FROM PREVIOUS ATTEMPT:\n# {feedback}\n"
-    else:
-        enhanced_prompt = prompt
+    previous_code = state.get("code", "") or ""
 
-    result = _coder.generate_and_save(task_id, enhanced_prompt)
+    # Use feedback if this is a retry
+    if iteration > 1 and feedback:
+        print(f"  [CODING] Repairing based on feedback: {feedback[:80]}...")
+        result = _coder.generate_and_save(
+            task_id, prompt,
+            feedback=feedback,
+            previous_code=previous_code,
+            iteration=iteration
+        )
+    else:
+        result = _coder.generate_and_save(task_id, prompt, iteration=iteration)
 
     code = result["full_code"]
     code_file = result["code_file"]
@@ -36,13 +40,13 @@ def coding_node(state):
     except SyntaxError:
         syntax_valid = False
 
-    # Run AI-specific metrics on generated code
+    # AI-specific metrics
     ai_metrics = run_all_ai_metrics(code_file)
     dead = ai_metrics["dead_code"]["total"]
     halluc = ai_metrics["hallucinated_imports"]["total"]
     dups = ai_metrics["code_duplication"]["duplicate_functions"]
 
-    print(f"  [CODING] {len(code.split(chr(10)))} lines, syntax={'OK' if syntax_valid else 'ERROR'}, dead_code={dead}, halluc_imports={halluc}, duplicates={dups}")
+    print(f"  [CODING] {len(code.split(chr(10)))} lines, syntax={'OK' if syntax_valid else 'ERROR'}, dead={dead}, halluc={halluc}, dups={dups}")
 
     return {
         **state,
@@ -65,28 +69,43 @@ def quality_node(state):
             **state,
             "quality_verdict": "SKIP",
             "quality_score": 0,
-            "quality_feedback": "Code has syntax errors. Fix syntax first.",
+            "quality_feedback": "Code has syntax errors. Fix the syntax first.",
         }
 
     result = _quality.run(state["code_file"])
-
     judgment = result.get("judgment", {})
     verdict = judgment.get("verdict", "UNKNOWN")
     score = judgment.get("quality_score", 0)
-    feedback = judgment.get("feedback", "")
 
     try:
         score = int(score)
     except (ValueError, TypeError):
         score = 0
 
+    # Build specific feedback from metric judgments
+    feedback_parts = []
+    for mj in judgment.get("metric_judgments", []):
+        if mj.get("result") == "FAIL":
+            feedback_parts.append(f"- {mj.get('metric', '?')}: {mj.get('explanation', '?')}")
+
+    if judgment.get("top_issues"):
+        for issue in judgment["top_issues"][:3]:
+            feedback_parts.append(f"- Fix: {issue}")
+
+    if judgment.get("feedback"):
+        feedback_parts.append(f"- {judgment['feedback']}")
+
+    specific_feedback = '\n'.join(feedback_parts) if feedback_parts else "Improve overall code quality."
+
     print(f"  [QUALITY] Verdict={verdict}, Score={score}/100")
+    if feedback_parts:
+        print(f"  [QUALITY] Feedback: {specific_feedback[:100]}...")
 
     return {
         **state,
         "quality_verdict": verdict,
         "quality_score": score,
-        "quality_feedback": feedback,
+        "quality_feedback": specific_feedback,
         "quality_plan": result.get("plan", {}),
         "quality_measurements": result.get("measurements", {}),
     }
@@ -99,10 +118,8 @@ def test_node(state):
         print(f"  [TEST] Skipped — syntax error")
         return {
             **state,
-            "test_pass_rate": 0,
-            "test_coverage": 0,
-            "test_total": 0,
-            "test_passed": 0,
+            "test_pass_rate": 0, "test_coverage": 0,
+            "test_total": 0, "test_passed": 0,
         }
 
     result = _tester.run(
@@ -117,10 +134,21 @@ def test_node(state):
     smells = metrics.get("smells", {})
     flaky = metrics.get("flakiness", {})
 
+    passed = pr.get("passed", 0)
+    total = pr.get("total", 0)
     pass_rate = pr.get("pass_rate", 0)
     coverage = cov.get("coverage_percent", 0)
-    total = pr.get("total", 0)
-    passed = pr.get("passed", 0)
+
+    # Build test feedback for retry
+    if pass_rate < 0.8 and total > 0:
+        test_feedback = f"Tests: {passed}/{total} passed. "
+        if pr.get("output"):
+            # Extract failure info
+            lines = pr["output"].split('\n')
+            failures = [l for l in lines if 'FAILED' in l or 'Error' in l]
+            if failures:
+                test_feedback += "Failures: " + "; ".join(failures[:3])
+        state["quality_feedback"] = test_feedback
 
     print(f"  [TEST] {passed}/{total} passed, coverage={coverage}%")
 
@@ -156,5 +184,4 @@ def correctness_node(state):
         correct = False
 
     print(f"  [CORRECTNESS] {'PASS' if correct else 'FAIL'}")
-
     return {**state, "correct": correct}
