@@ -1,16 +1,17 @@
 from generated_code import truncate_number
 
-def test_truncate_number_normal():
-    assert truncate_number(3.5) == 0.5, "Test for 3.5 failed"
-
+def test_truncate_number_positive():
+    assert truncate_number(3.5) == 0.5, "Test case for positive number failed"
+    
 def test_truncate_number_edge():
-    assert truncate_number(2.9999) == 0.9999, "Test for 2.9999 failed"
+    assert truncate_number(2.99999) == 0.99999, "Test case for edge case failed"
 
 def test_truncate_number_boundary():
-    assert truncate_number(4.0) == 0.0, "Test for 4.0 failed"
-
-def test_truncate_number_empty_input():
-    try:
-        truncate_number(None)
-    except TypeError as e:
-        assert str(e) == "truncate_number() takes exactly one argument (1 given)", "Test for empty input failed"
+    assert truncate_number(4.0) == 0.0, "Test case for boundary condition failed"
+    
+def test_truncate_number_zero():
+    assert truncate_number(0.0) == 0.0, "Test case for zero number failed"
+    
+def test_truncate_number_negative():
+    with pytest.raises(ValueError):
+        truncate_number(-1.5), "Test case for negative number failed"

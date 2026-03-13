@@ -9,19 +9,8 @@ def separate_paren_groups(paren_string: str) -> List[str]:
     >>> separate_paren_groups('( ) (( )) (( )( ))')
     ['()', '(())', '(()())']
     """
-    result = []
-    stack = []
-    current_group = []
 
-    for char in paren_string.replace(" ", ""):
-        if char == '(':
-            stack.append(char)
-            current_group.append(char)
-        elif char == ')' and stack:
-            stack.pop()
-            current_group.append(char)
-            if not stack:
-                result.append(''.join(current_group))
-                current_group = []
 
-    return result
+# FEEDBACK FROM PREVIOUS ATTEMPT:
+# Consider refactoring the function to reduce its cyclomatic complexity by using loops instead of recursion or breaking down the logic into smaller functions.
+

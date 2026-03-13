@@ -12,9 +12,9 @@ def has_close_elements(numbers: List[float], threshold: float) -> bool:
 
 
 # FEEDBACK FROM PREVIOUS ATTEMPT:
-# Refactor the code to reduce cyclomatic complexity by using a more efficient algorithm, such as sorting and checking adjacent elements. Also, consider improving the maintainability by adding comments and documentation.
-    numbers.sort()
-    for i in range(len(numbers) - 1):
-        if numbers[i + 1] - numbers[i] < threshold:
-            return True
+# Add a return statement with a default value (e.g., `False`) to complete the function.
+    for i in range(len(numbers)):
+        for j in range(i + 1, len(numbers)):
+            if abs(numbers[i] - numbers[j]) < threshold:
+                return True
     return False
