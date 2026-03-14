@@ -10,19 +10,18 @@ def separate_paren_groups(paren_string: str) -> List[str]:
     ['()', '(())', '(()())']
     """
     result = []
-    stack = []
-    current_group = []
+    current_group = ""
+    depth = 0
 
     for char in paren_string.replace(" ", ""):
         if char == '(':
-            stack.append(char)
-            current_group.append(char)
+            depth += 1
+            current_group += char
         elif char == ')':
-            if stack:
-                stack.pop()
-                current_group.append(char)
-                if not stack:
-                    result.append(''.join(current_group))
-                    current_group = []
+            depth -= 1
+            current_group += char
+            if depth == 0:
+                result.append(current_group)
+                current_group = ""
 
     return result

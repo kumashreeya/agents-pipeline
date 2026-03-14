@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-13T22:14:58.429616",
+  "timestamp": "2026-03-14T14:51:02.326996",
   "task_id": "HumanEval/0",
   "model": "qwen2.5-coder:3b",
   "code_file": "results/HumanEval_0/generated_code.py",
@@ -9,21 +9,22 @@
     "validity": {
       "metric": "test_validity",
       "valid": true,
-      "test_function_count": 0,
-      "assert_count": 0,
-      "assertions_per_test": 0
+      "test_function_count": 5,
+      "assert_count": 6,
+      "assertions_per_test": 1.2
     },
     "pass_rate": {
       "metric": "test_pass_rate",
-      "passed": 0,
+      "passed": 5,
       "failed": 0,
       "errors": 0,
-      "total": 0,
-      "pass_rate": 0
+      "total": 5,
+      "pass_rate": 1.0,
+      "output": "============================= test session starts ==============================\nplatform darwin -- Python 3.13.3, pytest-9.0.2, pluggy-1.6.0 -- /Users/shreeyakalidindi/thesis/quality-agent/venv/bin/python\ncachedir: .pytest_cache\nrootdir: /Users/shreeyakalidindi/thesis/quality-agent/results/HumanEva"
     },
     "coverage": {
       "metric": "line_coverage",
-      "coverage_percent": 28.57
+      "coverage_percent": 100.0
     },
     "smells": {
       "metric": "test_smells",
@@ -33,12 +34,12 @@
     "flakiness": {
       "metric": "flakiness",
       "runs": [
-        0,
-        0,
-        0
+        5,
+        5,
+        5
       ],
       "is_flaky": false,
-      "flakiness_rate": 0
+      "flakiness_rate": 0.0
     }
   }
 }
