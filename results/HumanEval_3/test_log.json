@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-13T22:24:08.885135",
+  "timestamp": "2026-03-14T14:53:47.505520",
   "task_id": "HumanEval/3",
   "model": "qwen2.5-coder:3b",
   "code_file": "results/HumanEval_3/generated_code.py",
@@ -19,7 +19,8 @@
       "failed": 0,
       "errors": 0,
       "total": 5,
-      "pass_rate": 1.0
+      "pass_rate": 1.0,
+      "output": "============================= test session starts ==============================\nplatform darwin -- Python 3.13.3, pytest-9.0.2, pluggy-1.6.0 -- /Users/shreeyakalidindi/thesis/quality-agent/venv/bin/python\ncachedir: .pytest_cache\nrootdir: /Users/shreeyakalidindi/thesis/quality-agent/results/HumanEva"
     },
     "coverage": {
       "metric": "line_coverage",

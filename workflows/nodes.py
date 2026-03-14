@@ -1,4 +1,4 @@
-"""Workflow nodes with proper feedback loop."""
+"""Workflow nodes with correctness-aware iteration."""
 import os
 from agents.coding_agent import CodingAgent
 from agents.quality_agent import QualityAgent
@@ -19,9 +19,8 @@ def coding_node(state):
     feedback = state.get("quality_feedback", "") or ""
     previous_code = state.get("code", "") or ""
 
-    # Use feedback if this is a retry
     if iteration > 1 and feedback:
-        print(f"  [CODING] Repairing based on feedback: {feedback[:80]}...")
+        print(f"  [CODING] Repairing: {feedback[:80]}...")
         result = _coder.generate_and_save(
             task_id, prompt,
             feedback=feedback,
@@ -40,7 +39,6 @@ def coding_node(state):
     except SyntaxError:
         syntax_valid = False
 
-    # AI-specific metrics
     ai_metrics = run_all_ai_metrics(code_file)
     dead = ai_metrics["dead_code"]["total"]
     halluc = ai_metrics["hallucinated_imports"]["total"]
@@ -82,15 +80,10 @@ def quality_node(state):
     except (ValueError, TypeError):
         score = 0
 
-    # Build specific feedback from metric judgments
     feedback_parts = []
     for mj in judgment.get("metric_judgments", []):
         if mj.get("result") == "FAIL":
-            feedback_parts.append(f"- {mj.get('metric', '?')}: {mj.get('explanation', '?')}")
-
-    if judgment.get("top_issues"):
-        for issue in judgment["top_issues"][:3]:
-            feedback_parts.append(f"- Fix: {issue}")
+            feedback_parts.append(f"- {mj.get('metric')}: measured {mj.get('measured_value')}, need {mj.get('comparison')}{mj.get('threshold')}")
 
     if judgment.get("feedback"):
         feedback_parts.append(f"- {judgment['feedback']}")
@@ -98,8 +91,6 @@ def quality_node(state):
     specific_feedback = '\n'.join(feedback_parts) if feedback_parts else "Improve overall code quality."
 
     print(f"  [QUALITY] Verdict={verdict}, Score={score}/100")
-    if feedback_parts:
-        print(f"  [QUALITY] Feedback: {specific_feedback[:100]}...")
 
     return {
         **state,
@@ -139,16 +130,14 @@ def test_node(state):
     pass_rate = pr.get("pass_rate", 0)
     coverage = cov.get("coverage_percent", 0)
 
-    # Build test feedback for retry
+    # Build feedback if tests fail
     if pass_rate < 0.8 and total > 0:
-        test_feedback = f"Tests: {passed}/{total} passed. "
+        test_feedback = f"Tests: {passed}/{total} passed."
         if pr.get("output"):
-            # Extract failure info
-            lines = pr["output"].split('\n')
-            failures = [l for l in lines if 'FAILED' in l or 'Error' in l]
+            failures = [l for l in pr["output"].split('\n') if 'FAILED' in l or 'Error' in l]
             if failures:
-                test_feedback += "Failures: " + "; ".join(failures[:3])
-        state["quality_feedback"] = test_feedback
+                test_feedback += " Failures: " + "; ".join(failures[:3])
+        state = {**state, "quality_feedback": test_feedback}
 
     print(f"  [TEST] {passed}/{total} passed, coverage={coverage}%")
 
@@ -164,6 +153,7 @@ def test_node(state):
 
 
 def correctness_node(state):
+    """Check against HumanEval tests."""
     print(f"\n  [CORRECTNESS] Running HumanEval tests...")
 
     if not state.get("syntax_valid", False):
@@ -180,8 +170,38 @@ def correctness_node(state):
         check_code = problem["test"] + f"\ncheck({state['entry_point']})"
         exec(check_code, exec_globals)
         correct = True
-    except Exception:
+    except Exception as e:
         correct = False
+        # Store the error as feedback for the coding agent
+        error_msg = str(e)[:200]
+        state = {**state, "quality_feedback": f"Code fails HumanEval tests: {error_msg}"}
 
     print(f"  [CORRECTNESS] {'PASS' if correct else 'FAIL'}")
+    return {**state, "correct": correct}
+
+
+def quick_correctness_node(state):
+    """Quick correctness check for use INSIDE iterative loops."""
+    print(f"\n  [QUICK CHECK] Testing correctness...")
+
+    if not state.get("syntax_valid", False):
+        return {**state, "correct": False, "quality_feedback": "Code has syntax errors."}
+
+    from human_eval.data import read_problems
+    problems = read_problems()
+    problem = problems[state["task_id"]]
+
+    try:
+        exec_globals = {}
+        exec(state["code"], exec_globals)
+        check_code = problem["test"] + f"\ncheck({state['entry_point']})"
+        exec(check_code, exec_globals)
+        correct = True
+        print(f"  [QUICK CHECK] PASS")
+    except Exception as e:
+        correct = False
+        error_msg = str(e)[:200]
+        print(f"  [QUICK CHECK] FAIL — {error_msg[:80]}")
+        state = {**state, "quality_feedback": f"Code produces wrong output: {error_msg}"}
+
     return {**state, "correct": correct}
