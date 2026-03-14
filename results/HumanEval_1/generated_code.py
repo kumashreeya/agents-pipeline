@@ -9,39 +9,20 @@ def separate_paren_groups(paren_string: str) -> List[str]:
     >>> separate_paren_groups('( ) (( )) (( )( ))')
     ['()', '(())', '(()())']
     """
-    from typing import List
+    result = []
+    stack = []
+    current_group = []
 
-
-    def separate_parentheses_groups(paren_string: str) -> List[str]:
-    """ Extracts and returns separate groups of balanced parentheses from the input string.
-
-    The function ignores spaces in the input and ensures that each group is balanced (each open parenthesis is closed).
-    >>> separate_parentheses_groups('( ) (( )) (( )( ))')
-    ['()', '(())', '(()())']
-    """
-    def extract_group(string: str) -> str:
-        stack = []
-        result = []
-        for char in string:
-            if char == '(':
-                stack.append(char)
-            elif char == ')':
+    for char in paren_string.replace(" ", ""):
+        if char == '(':
+            stack.append(char)
+            current_group.append(char)
+        elif char == ')':
+            if stack:
                 stack.pop()
-                result.append(char)
-            if not stack:
-                return ''.join(result)
+                current_group.append(char)
+                if not stack:
+                    result.append(''.join(current_group))
+                    current_group = []
 
-    paren_string = paren_string.replace(" ", "")
-    groups = []
-
-    current_index = 0
-    while current_index < len(paren_string):
-        group = extract_group(paren_string[current_index:])
-        if group:
-            groups.append(group)
-            current_index += len(group) - 1
-
-    return groups
-
-
-    # Lint fixes and improved variable names for better readability
+    return result

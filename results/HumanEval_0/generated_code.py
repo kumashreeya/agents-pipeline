@@ -11,6 +11,6 @@ def has_close_elements(numbers: List[float], threshold: float) -> bool:
     """
     numbers.sort()  # Sort the list to make it easier to find close elements
     for i in range(len(numbers) - 1):
-        if abs(numbers[i] - numbers[i + 1]) < threshold:
+        if numbers[i + 1] - numbers[i] < threshold:
             return True
     return False
