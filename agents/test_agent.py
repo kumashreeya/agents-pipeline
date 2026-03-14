@@ -8,12 +8,13 @@ import os
 import re
 import datetime
 from ollama import chat
+from config import MODEL, TEMPERATURE
 from tools.mutation_score import measure_mutation_score
 
 
 class TestAgent:
-    def __init__(self, model='qwen2.5-coder:3b'):
-        self.model = model
+    def __init__(self, model=None):
+        self.model = model or MODEL
 
     def generate_tests(self, code, function_name):
         response = chat(

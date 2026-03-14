@@ -6,11 +6,12 @@ import os
 import ast
 import datetime
 from ollama import chat
+from config import MODEL, TEMPERATURE
 
 
 class CodingAgent:
-    def __init__(self, model='qwen2.5-coder:3b'):
-        self.model = model
+    def __init__(self, model=None):
+        self.model = model or MODEL
 
     def _clean_response(self, generated_code, prompt):
         if '```python' in generated_code:
@@ -149,40 +150,24 @@ class CodingAgent:
         return True, "ok"
 
     def generate(self, task_id, prompt, feedback=None, previous_code=None, iteration=1):
-        """Generate or repair code based on feedback."""
+        opts = {'temperature': TEMPERATURE}
 
         if feedback and previous_code and iteration > 1:
-            # REPAIR MODE: Give the model its own code + specific feedback
             messages = [
-                {
-                    'role': 'system',
-                    'content': 'You are a Python expert. You will fix code based on feedback. Return ONLY the complete fixed function. No markdown. No explanations.'
-                },
-                {
-                    'role': 'user',
-                    'content': f'Here is a Python function that needs fixing:\n\n```python\n{previous_code}\n```\n\nPROBLEMS TO FIX:\n{feedback}\n\nWrite the COMPLETE fixed function. Return ONLY Python code, nothing else.'
-                }
+                {'role': 'system', 'content': 'You are a Python expert. Fix code based on feedback. Return ONLY the complete fixed function. No markdown. No explanations.'},
+                {'role': 'user', 'content': f'Fix this function:\n\n```python\n{previous_code}\n```\n\nPROBLEMS:\n{feedback}\n\nWrite the COMPLETE fixed function. ONLY Python code.'}
             ]
         else:
-            # GENERATE MODE: First attempt
             messages = [
-                {
-                    'role': 'system',
-                    'content': 'You are a Python coding expert. Complete the given function. Return ONLY the implementation code. No markdown. No explanations.'
-                },
-                {
-                    'role': 'user',
-                    'content': f'Complete this Python function. Write ONLY the body:\n\n{prompt}'
-                }
+                {'role': 'system', 'content': 'You are a Python coding expert. Complete the given function. Return ONLY the implementation code. No markdown. No explanations.'},
+                {'role': 'user', 'content': f'Complete this Python function. Write ONLY the body:\n\n{prompt}'}
             ]
 
-        response = chat(model=self.model, messages=messages)
+        response = chat(model=self.model, messages=messages, options=opts)
         generated_code = response.message.content.strip()
 
-        # Clean and combine
         full_code = self._clean_response(generated_code, prompt)
 
-        # Validate and deduplicate
         valid, issue = self._validate_code(full_code)
         if not valid and "duplicate_function" in issue:
             func_name = issue.split(":")[1]
@@ -191,14 +176,10 @@ class CodingAgent:
 
         return {
             'timestamp': datetime.datetime.now().isoformat(),
-            'task_id': task_id,
-            'model': self.model,
-            'prompt': prompt,
-            'generated_body': generated_code,
-            'full_code': full_code,
-            'valid': valid,
-            'validation_issue': issue,
-            'iteration': iteration,
+            'task_id': task_id, 'model': self.model,
+            'prompt': prompt, 'generated_body': generated_code,
+            'full_code': full_code, 'valid': valid,
+            'validation_issue': issue, 'iteration': iteration,
             'had_feedback': feedback is not None,
         }
 

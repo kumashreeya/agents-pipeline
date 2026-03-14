@@ -8,6 +8,7 @@ import json
 import datetime
 from ollama import chat
 from tools.metric_runners import ALL_METRICS, run_metric
+from config import MODEL, TEMPERATURE
 
 
 METRIC_CATALOG = """
@@ -36,8 +37,8 @@ DEFAULT_THRESHOLDS = {
 class QualityAgent:
     """An autonomous agent that evaluates code quality."""
 
-    def __init__(self, model='qwen2.5-coder:3b'):
-        self.model = model
+    def __init__(self, model=None):
+        self.model = model or MODEL
 
     def plan(self, code):
         """Phase 1: LLM reads code and decides what to check."""
