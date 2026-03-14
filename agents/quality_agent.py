@@ -1,101 +1,127 @@
 """
-Autonomous Quality Agent
-Phase 1 (PLAN): LLM decides what to check
+Autonomous Quality Agent — hybrid AST + LLM planning.
+Phase 1 (PLAN): AST analysis detects patterns, LLM confirms and adjusts
 Phase 2 (MEASURE): Tools run deterministically
-Phase 3 (JUDGE): Code compares numbers + LLM provides feedback
+Phase 3 (JUDGE): Code compares numbers, LLM provides feedback
 """
 import json
 import datetime
 from ollama import chat
 from tools.metric_runners import ALL_METRICS, run_metric
+from tools.code_analyzer import analyze_code
 from config import MODEL, TEMPERATURE
 
 
-METRIC_CATALOG = """
-AVAILABLE METRICS:
-1. lint_violations — style and best practice issues (ruff)
-2. security_vulnerabilities — CWE vulnerability patterns (bandit). MUST select if code uses eval, exec, pickle, os.system, subprocess, open(), socket, or SQL strings
-3. cyclomatic_complexity — paths through code. 1-5=simple, 6-10=moderate, 11+=complex (radon)
-4. maintainability_index — combined score 0-100. Above 40=good, 20-40=moderate, below 20=poor (radon)
-5. type_errors — type annotation errors under strict checking (mypy)
-6. halstead_difficulty — how error-prone the code is. Higher=worse (radon)
-7. sloc — source lines of code, comment lines, blank lines (radon)
-"""
-
-# Fixed thresholds for deterministic judging — LLM no longer does math
 DEFAULT_THRESHOLDS = {
     'lint_violations': {'field': 'total', 'op': '<=', 'value': 5, 'desc': 'Max 5 lint violations'},
-    'security_vulnerabilities': {'field': 'high', 'op': '==', 'value': 0, 'desc': 'Zero HIGH severity vulnerabilities'},
-    'cyclomatic_complexity': {'field': 'average', 'op': '<=', 'value': 10, 'desc': 'Average complexity <= 10'},
-    'maintainability_index': {'field': 'score', 'op': '>=', 'value': 20, 'desc': 'MI score >= 20'},
+    'security_vulnerabilities': {'field': 'high', 'op': '==', 'value': 0, 'desc': 'Zero HIGH severity'},
+    'cyclomatic_complexity': {'field': 'average', 'op': '<=', 'value': 10, 'desc': 'Avg complexity <= 10'},
+    'maintainability_index': {'field': 'score', 'op': '>=', 'value': 20, 'desc': 'MI >= 20'},
     'type_errors': {'field': 'total_errors', 'op': '<=', 'value': 5, 'desc': 'Max 5 type errors'},
     'halstead_difficulty': {'field': 'difficulty', 'op': '<=', 'value': 30, 'desc': 'Difficulty <= 30'},
-    'sloc': {'field': 'sloc', 'op': '<=', 'value': 200, 'desc': 'Source lines <= 200'},
+    'sloc': {'field': 'sloc', 'op': '<=', 'value': 200, 'desc': 'SLOC <= 200'},
 }
 
 
 class QualityAgent:
-    """An autonomous agent that evaluates code quality."""
-
     def __init__(self, model=None):
         self.model = model or MODEL
 
     def plan(self, code):
-        """Phase 1: LLM reads code and decides what to check."""
-        response = chat(
-            model=self.model,
-            messages=[
-                {
-                    'role': 'system',
-                    'content': f"""You are a senior code quality expert. Decide which quality metrics to measure.
-{METRIC_CATALOG}
-RULES:
-- MUST select security_vulnerabilities if code contains eval, exec, pickle, os.system, subprocess, open(), or SQL strings
-- Select at least 3 metrics for any code
-- Select at least 5 metrics for medium or high risk code"""
-                },
-                {
-                    'role': 'user',
-                    'content': f"""Analyze this code and decide which metrics to measure.
-```python
-{code}
-```
+        """Phase 1: Hybrid AST + LLM planning."""
 
-FIRST list every dangerous function or pattern you see.
-THEN select your metrics.
+        # Step 1: AST analysis (deterministic, fast, accurate)
+        analysis = analyze_code(code)
+
+        # Step 2: Build the metric selection from AST recommendations
+        selected = []
+        skipped = []
+        for metric, reason in analysis['recommended_metrics']:
+            priority = 'critical' if 'CRITICAL' in reason else 'important'
+            selected.append({
+                'metric': metric,
+                'why': reason,
+                'priority': priority,
+                'source': 'code_analysis',
+            })
+        for metric, reason in analysis['skip_metrics']:
+            skipped.append({
+                'metric': metric,
+                'why_skipped': reason,
+                'source': 'code_analysis',
+            })
+
+        # Step 3: LLM reviews and can add/adjust (but doesn't start from scratch)
+        try:
+            response = chat(
+                model=self.model,
+                messages=[
+                    {
+                        'role': 'system',
+                        'content': 'You are a code quality expert. Review the automated analysis and add any insights the analysis missed. Be brief.'
+                    },
+                    {
+                        'role': 'user',
+                        'content': f"""Automated code analysis found:
+- Security risks: {analysis['has_security_risks']} {analysis['security_patterns']}
+- Loops: {analysis['has_loops']}, Nested conditions: {analysis['has_nested_conditions']}
+- Nesting depth: {analysis['nesting_depth']}
+- Type hints: {analysis['has_type_hints']}
+- File I/O: {analysis['has_file_io']}
+- Lines: {analysis['line_count']}
+- Complex: {analysis['is_complex']}, Simple: {analysis['is_simple']}
+
+Selected metrics: {[m['metric'] for m in selected]}
+Skipped metrics: {[s['metric'] for s in skipped]}
+
+Code snippet:
+```python
+{code[:300]}
+```
 
 Respond with ONLY JSON:
 {{
     "code_purpose": "one sentence",
-    "dangerous_patterns_found": ["list every risky pattern"],
     "risk_level": "low or medium or high",
-    "selected_metrics": [
-        {{"metric": "exact name from list", "why": "one sentence", "priority": "critical or important or informational"}}
-    ],
-    "skipped_metrics": [
-        {{"metric": "name", "why_skipped": "one sentence"}}
-    ]
+    "analysis_correct": true or false,
+    "additional_concerns": ["any issues the analysis missed"]
 }}"""
-                }
-            ]
-        )
+                    }
+                ],
+                options={'temperature': TEMPERATURE}
+            )
 
-        text = response.message.content.strip()
-        if text.startswith('```'):
-            text = text.split('\n', 1)[1]
-        if '```' in text:
-            text = text.split('```')[0]
+            text = response.message.content.strip()
+            if text.startswith('```'):
+                text = text.split('\n', 1)[1]
+            if '```' in text:
+                text = text.split('```')[0]
 
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            return {
-                'code_purpose': 'unknown',
-                'dangerous_patterns_found': [],
-                'risk_level': 'medium',
-                'selected_metrics': [{'metric': name, 'why': 'fallback', 'priority': 'important'} for name in ALL_METRICS.keys()],
-                'skipped_metrics': []
-            }
+            try:
+                llm_review = json.loads(text)
+            except json.JSONDecodeError:
+                llm_review = {'code_purpose': 'unknown', 'risk_level': 'medium', 'analysis_correct': True}
+
+        except Exception:
+            llm_review = {'code_purpose': 'unknown', 'risk_level': 'medium', 'analysis_correct': True}
+
+        plan = {
+            'code_purpose': llm_review.get('code_purpose', 'unknown'),
+            'dangerous_patterns_found': analysis['security_patterns'],
+            'risk_level': llm_review.get('risk_level', 'medium'),
+            'code_analysis': {
+                'nesting_depth': analysis['nesting_depth'],
+                'has_loops': analysis['has_loops'],
+                'has_type_hints': analysis['has_type_hints'],
+                'is_complex': analysis['is_complex'],
+                'line_count': analysis['line_count'],
+            },
+            'selected_metrics': selected,
+            'skipped_metrics': skipped,
+            'llm_review': llm_review,
+        }
+
+        return plan
 
     def measure(self, code_file, plan):
         """Phase 2: Run selected metrics deterministically."""
@@ -107,7 +133,6 @@ Respond with ONLY JSON:
         return measurements
 
     def _compare(self, value, op, threshold):
-        """Deterministic comparison — no LLM needed."""
         if op == '<=': return value <= threshold
         if op == '>=': return value >= threshold
         if op == '==': return value == threshold
@@ -116,9 +141,7 @@ Respond with ONLY JSON:
         return True
 
     def judge(self, code, plan, measurements):
-        """Phase 3: Code does math, LLM provides feedback only."""
-
-        # Step 1: DETERMINISTIC comparison (Python, not LLM)
+        """Phase 3: Deterministic comparison + LLM feedback."""
         metric_judgments = []
         failed_metrics = []
         passed_metrics = []
@@ -138,7 +161,7 @@ Respond with ONLY JSON:
                 thresh = threshold_info['value']
                 passed = self._compare(value, op, thresh)
 
-                judgment = {
+                metric_judgments.append({
                     'metric': metric_name,
                     'measured_value': value,
                     'threshold': thresh,
@@ -146,18 +169,16 @@ Respond with ONLY JSON:
                     'result': 'PASS' if passed else 'FAIL',
                     'priority': metric_info.get('priority', 'important'),
                     'description': threshold_info['desc'],
-                }
-                metric_judgments.append(judgment)
+                })
 
                 if passed:
                     passed_metrics.append(metric_name)
                 else:
                     failed_metrics.append(metric_name)
 
-        # Step 2: DETERMINISTIC verdict
-        critical_fails = [j for j in metric_judgments 
+        critical_fails = [j for j in metric_judgments
                          if j['result'] == 'FAIL' and j['priority'] == 'critical']
-        
+
         if critical_fails:
             verdict = 'FAIL'
         elif len(failed_metrics) >= 3:
@@ -167,17 +188,14 @@ Respond with ONLY JSON:
         else:
             verdict = 'PASS'
 
-        # Step 3: Calculate quality score (deterministic)
         total = len(metric_judgments)
         passed_count = len(passed_metrics)
         quality_score = round((passed_count / total) * 100) if total > 0 else 0
 
-        # Step 4: LLM provides FEEDBACK ONLY (not judgment)
         feedback = ""
         top_issues = []
 
         if failed_metrics:
-            # Build a simple summary for the LLM
             fail_summary = []
             for j in metric_judgments:
                 if j['result'] == 'FAIL':
@@ -187,27 +205,14 @@ Respond with ONLY JSON:
                 fb_response = chat(
                     model=self.model,
                     messages=[
-                        {
-                            'role': 'system',
-                            'content': 'You are a code quality advisor. Give specific, actionable fix suggestions in 2-3 sentences. No JSON, just plain text.'
-                        },
-                        {
-                            'role': 'user',
-                            'content': f"""This code has quality issues:
-```python
-{code[:500]}
-```
-
-Failed metrics:
-{chr(10).join(fail_summary)}
-
-What specific changes should be made to fix these issues? Be brief and actionable."""
-                        }
-                    ]
+                        {'role': 'system', 'content': 'Give specific fix suggestions in 2-3 sentences. No JSON, plain text.'},
+                        {'role': 'user', 'content': f"Code issues:\n{chr(10).join(fail_summary)}\n\nWhat specific changes to fix these?"}
+                    ],
+                    options={'temperature': TEMPERATURE}
                 )
                 feedback = fb_response.message.content.strip()[:300]
             except Exception:
-                feedback = "Fix the failed metrics listed above."
+                feedback = "Fix the failed metrics."
 
             top_issues = [f"{j['metric']}: {j['measured_value']} (need {j['comparison']}{j['threshold']})" for j in metric_judgments if j['result'] == 'FAIL']
 
@@ -223,7 +228,6 @@ What specific changes should be made to fix these issues? Be brief and actionabl
         }
 
     def run(self, code_file):
-        """Run the full quality agent pipeline: plan -> measure -> judge."""
         with open(code_file, 'r') as f:
             code = f.read()
 
