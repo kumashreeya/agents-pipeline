@@ -1,9 +1,10 @@
-"""Workflow nodes with correctness-aware iteration."""
+"""Workflow nodes with timing and token counting."""
 import os
 from agents.coding_agent import CodingAgent
 from agents.quality_agent import QualityAgent
 from agents.test_agent import TestAgent
 from tools.ai_specific_metrics import run_all_ai_metrics
+from tools.timer import timer
 
 _coder = CodingAgent()
 _quality = QualityAgent()
@@ -11,6 +12,7 @@ _tester = TestAgent()
 
 
 def coding_node(state):
+    timer.start('coding')
     iteration = state.get("iteration", 0) + 1
     print(f"\n  [CODING] Iteration {iteration}")
 
@@ -44,7 +46,11 @@ def coding_node(state):
     halluc = ai_metrics["hallucinated_imports"]["total"]
     dups = ai_metrics["code_duplication"]["duplicate_functions"]
 
-    print(f"  [CODING] {len(code.split(chr(10)))} lines, syntax={'OK' if syntax_valid else 'ERROR'}, dead={dead}, halluc={halluc}, dups={dups}")
+    timer.stop('coding')
+    print(f"  [CODING] {len(code.split(chr(10)))} lines, syntax={'OK' if syntax_valid else 'ERROR'}, dead={dead}, halluc={halluc}, dups={dups} ({timer.get('coding')}s)")
+
+    # Accumulate timing
+    prev_coding_time = state.get("time_coding", 0)
 
     return {
         **state,
@@ -55,19 +61,23 @@ def coding_node(state):
         "ai_dead_code": dead,
         "ai_hallucinated_imports": halluc,
         "ai_duplicates": dups,
+        "time_coding": round(prev_coding_time + timer.get('coding'), 2),
     }
 
 
 def quality_node(state):
+    timer.start('quality')
     print(f"\n  [QUALITY] Evaluating...")
 
     if not state.get("syntax_valid", False):
+        timer.stop('quality')
         print(f"  [QUALITY] Skipped — syntax error")
         return {
             **state,
             "quality_verdict": "SKIP",
             "quality_score": 0,
             "quality_feedback": "Code has syntax errors. Fix the syntax first.",
+            "time_quality": round(state.get("time_quality", 0) + timer.get('quality'), 2),
         }
 
     result = _quality.run(state["code_file"])
@@ -90,7 +100,8 @@ def quality_node(state):
 
     specific_feedback = '\n'.join(feedback_parts) if feedback_parts else "Improve overall code quality."
 
-    print(f"  [QUALITY] Verdict={verdict}, Score={score}/100")
+    timer.stop('quality')
+    print(f"  [QUALITY] Verdict={verdict}, Score={score}/100 ({timer.get('quality')}s)")
 
     return {
         **state,
@@ -99,18 +110,22 @@ def quality_node(state):
         "quality_feedback": specific_feedback,
         "quality_plan": result.get("plan", {}),
         "quality_measurements": result.get("measurements", {}),
+        "time_quality": round(state.get("time_quality", 0) + timer.get('quality'), 2),
     }
 
 
 def test_node(state):
+    timer.start('test')
     print(f"\n  [TEST] Generating and running tests...")
 
     if not state.get("syntax_valid", False):
+        timer.stop('test')
         print(f"  [TEST] Skipped — syntax error")
         return {
             **state,
             "test_pass_rate": 0, "test_coverage": 0,
             "test_total": 0, "test_passed": 0,
+            "time_test": round(state.get("time_test", 0) + timer.get('test'), 2),
         }
 
     result = _tester.run(
@@ -130,7 +145,6 @@ def test_node(state):
     pass_rate = pr.get("pass_rate", 0)
     coverage = cov.get("coverage_percent", 0)
 
-    # Build feedback if tests fail
     if pass_rate < 0.8 and total > 0:
         test_feedback = f"Tests: {passed}/{total} passed."
         if pr.get("output"):
@@ -139,7 +153,8 @@ def test_node(state):
                 test_feedback += " Failures: " + "; ".join(failures[:3])
         state = {**state, "quality_feedback": test_feedback}
 
-    print(f"  [TEST] {passed}/{total} passed, coverage={coverage}%")
+    timer.stop('test')
+    print(f"  [TEST] {passed}/{total} passed, coverage={coverage}% ({timer.get('test')}s)")
 
     return {
         **state,
@@ -149,16 +164,17 @@ def test_node(state):
         "test_passed": passed,
         "test_smells": smells.get("total_smells", 0),
         "test_flaky": flaky.get("is_flaky", False),
+        "time_test": round(state.get("time_test", 0) + timer.get('test'), 2),
     }
 
 
 def correctness_node(state):
-    """Check against HumanEval tests."""
+    timer.start('correctness')
     print(f"\n  [CORRECTNESS] Running HumanEval tests...")
 
     if not state.get("syntax_valid", False):
-        print(f"  [CORRECTNESS] Skipped — syntax error")
-        return {**state, "correct": False}
+        timer.stop('correctness')
+        return {**state, "correct": False, "time_correctness": timer.get('correctness')}
 
     from human_eval.data import read_problems
     problems = read_problems()
@@ -172,19 +188,20 @@ def correctness_node(state):
         correct = True
     except Exception as e:
         correct = False
-        # Store the error as feedback for the coding agent
         error_msg = str(e)[:200]
         state = {**state, "quality_feedback": f"Code fails HumanEval tests: {error_msg}"}
 
-    print(f"  [CORRECTNESS] {'PASS' if correct else 'FAIL'}")
-    return {**state, "correct": correct}
+    timer.stop('correctness')
+    print(f"  [CORRECTNESS] {'PASS' if correct else 'FAIL'} ({timer.get('correctness')}s)")
+    return {**state, "correct": correct, "time_correctness": timer.get('correctness')}
 
 
 def quick_correctness_node(state):
-    """Quick correctness check for use INSIDE iterative loops."""
+    timer.start('quick_check')
     print(f"\n  [QUICK CHECK] Testing correctness...")
 
     if not state.get("syntax_valid", False):
+        timer.stop('quick_check')
         return {**state, "correct": False, "quality_feedback": "Code has syntax errors."}
 
     from human_eval.data import read_problems
@@ -197,11 +214,13 @@ def quick_correctness_node(state):
         check_code = problem["test"] + f"\ncheck({state['entry_point']})"
         exec(check_code, exec_globals)
         correct = True
-        print(f"  [QUICK CHECK] PASS")
+        timer.stop('quick_check')
+        print(f"  [QUICK CHECK] PASS ({timer.get('quick_check')}s)")
     except Exception as e:
         correct = False
         error_msg = str(e)[:200]
-        print(f"  [QUICK CHECK] FAIL — {error_msg[:80]}")
+        timer.stop('quick_check')
+        print(f"  [QUICK CHECK] FAIL ({timer.get('quick_check')}s)")
         state = {**state, "quality_feedback": f"Code produces wrong output: {error_msg}"}
 
     return {**state, "correct": correct}

@@ -27,3 +27,7 @@ class PipelineState(TypedDict):
     ai_dead_code: int
     ai_hallucinated_imports: int
     ai_duplicates: int
+    time_coding: float
+    time_quality: float
+    time_test: float
+    time_correctness: float
